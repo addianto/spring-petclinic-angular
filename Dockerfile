@@ -1,33 +1,28 @@
 ARG DOCKER_HUB="docker.io"
-ARG NGINX_VERSION="1.17.6"
-ARG NODE_VERSION="16.3-alpine"
+ARG NGINX_VERSION="1.24.0-alpine"
+ARG NODE_VERSION="16.14.2-alpine"
 
 FROM $DOCKER_HUB/library/node:$NODE_VERSION as build
-
 
 COPY . /workspace/
 
 ARG NPM_REGISTRY=" https://registry.npmjs.org"
+ARG REST_API_URL="http://localhost:9966/petclinic/api/"
+ARG NG_BUILD_CONFIGURATION="production"
 
-RUN echo "registry = \"$NPM_REGISTRY\"" > /workspace/.npmrc                              && \
-    cd /workspace/                                                                       && \
-    npm install                                                                          && \
-    npm run build
+WORKDIR /workspace/
 
-FROM $DOCKER_HUB/library/nginx:$NGINX_VERSION AS runtime
+RUN echo "registry = \"$NPM_REGISTRY\"" > .npmrc                                                            && \
+    sed -i.bak "s#http://localhost:9966/petclinic/api/#$REST_API_URL#" src/environments/environment.ts      && \
+    sed -i.bak "s#http://localhost:9966/petclinic/api/#$REST_API_URL#" src/environments/environment.prod.ts && \
+    npm install                                                                                             && \
+    npm run build --if-present -- --configuration $NG_BUILD_CONFIGURATION
 
+FROM $DOCKER_HUB/nginxinc/nginx-unprivileged:$NGINX_VERSION AS runtime
 
-COPY  --from=build /workspace/dist/ /usr/share/nginx/html/
-
-RUN chmod a+rwx /var/cache/nginx /var/run /var/log/nginx                        && \
-    sed -i.bak 's/listen\(.*\)80;/listen 8080;/' /etc/nginx/conf.d/default.conf && \
-    sed -i.bak 's/^user/#user/' /etc/nginx/nginx.conf
-
+COPY --from=build /workspace/dist/ /usr/share/nginx/html/
+COPY --chown=nginx ./deploy/nginx-unprivileged.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8080
 
-USER nginx
-
-HEALTHCHECK     CMD     [ "service", "nginx", "status" ]
-
-
+HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1
