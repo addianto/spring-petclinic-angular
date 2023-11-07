@@ -1,1 +1,7 @@
-node_modules
+.angular/
+.git/
+.github/
+dist/
+tmp/
+out-tsc/
+node_modules/
