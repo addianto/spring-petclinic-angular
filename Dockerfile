@@ -2,7 +2,7 @@ ARG DOCKER_HUB="docker.io"
 ARG NGINX_VERSION="1.24.0-alpine"
 ARG NODE_VERSION="16.14.2-alpine"
 
-FROM $DOCKER_HUB/library/node:$NODE_VERSION as build
+FROM $DOCKER_HUB/library/node:$NODE_VERSION AS build
 
 COPY . /workspace/
 
@@ -16,7 +16,7 @@ RUN echo "registry = \"$NPM_REGISTRY\"" > .npmrc                                
     sed -i.bak "s#http://localhost:9966/petclinic/api/#$REST_API_URL#" src/environments/environment.ts      && \
     sed -i.bak "s#http://localhost:9966/petclinic/api/#$REST_API_URL#" src/environments/environment.prod.ts && \
     npm install                                                                                             && \
-    npm run build --if-present -- --configuration $NG_BUILD_CONFIGURATION
+    npm run build --if-present -- --configuration "$NG_BUILD_CONFIGURATION"
 
 FROM $DOCKER_HUB/nginxinc/nginx-unprivileged:$NGINX_VERSION AS runtime
 
